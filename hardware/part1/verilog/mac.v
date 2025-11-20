@@ -11,7 +11,7 @@ input signed  [bw-1:0] b;  // weight
 input signed  [psum_bw-1:0] c;
 
 
-wire signed [2*bw:0] product;`
+wire signed [2*bw:0] product;
 wire signed [psum_bw-1:0] psum;
 wire signed [bw:0]   a_pad;
 
