@@ -7,17 +7,42 @@ module sfp (clk, reset, in, out, acc_en, relu_en, valid_in, valid_out);
   input reset;
   input [psum_bw*col-1:0] in;
   output [psum_bw*col-1:0] out;
-  input acc_en;      // Accumulation enable
-  input relu_en;     // ReLU enable
-  input valid_in;    // Input valid signal
-  output valid_out;  // Output valid signal
+  input acc_en;      
+  input relu_en;
+  input valid_in;    
+  output valid_out;
 
   reg [psum_bw*col-1:0] acc_reg;
   reg [psum_bw*col-1:0] out_reg;
   reg valid_out_reg;
   
+  // Intermediate wires for next-state logic
+  wire [psum_bw*col-1:0] next_acc;
+  wire [psum_bw*col-1:0] next_out;
+
   assign out = out_reg;
   assign valid_out = valid_out_reg;
+
+  genvar k;
+  generate
+    for (k=0; k<col; k=k+1) begin : gen_sfp_logic
+        // Extract current column inputs
+        wire signed [psum_bw-1:0] col_in = in[psum_bw*(k+1)-1:psum_bw*k];
+        wire signed [psum_bw-1:0] col_acc = acc_reg[psum_bw*(k+1)-1:psum_bw*k];
+        
+        // 1. Calculate Next Accumulation Value (Combinational)
+        wire signed [psum_bw-1:0] sum;
+        assign sum = acc_en ? (col_acc + col_in) : col_in;
+        
+        // 2. Calculate Next Output Value (ReLU Logic on the NEW sum)
+        wire signed [psum_bw-1:0] relu_res;
+        assign relu_res = (relu_en && sum[psum_bw-1]) ? {psum_bw{1'b0}} : sum;
+        
+        // Pack into vectors
+        assign next_acc[psum_bw*(k+1)-1:psum_bw*k] = sum;
+        assign next_out[psum_bw*(k+1)-1:psum_bw*k] = relu_res;
+    end
+  endgenerate
 
   always @ (posedge clk) begin
     if (reset) begin
@@ -28,36 +53,11 @@ module sfp (clk, reset, in, out, acc_en, relu_en, valid_in, valid_out);
       valid_out_reg <= valid_in;
       
       if (valid_in) begin
-        // Accumulation logic - fully unrolled for each column
-        if (acc_en) begin
-          acc_reg[psum_bw*1-1:psum_bw*0] <= $signed(acc_reg[psum_bw*1-1:psum_bw*0]) + $signed(in[psum_bw*1-1:psum_bw*0]);
-          acc_reg[psum_bw*2-1:psum_bw*1] <= $signed(acc_reg[psum_bw*2-1:psum_bw*1]) + $signed(in[psum_bw*2-1:psum_bw*1]);
-          acc_reg[psum_bw*3-1:psum_bw*2] <= $signed(acc_reg[psum_bw*3-1:psum_bw*2]) + $signed(in[psum_bw*3-1:psum_bw*2]);
-          acc_reg[psum_bw*4-1:psum_bw*3] <= $signed(acc_reg[psum_bw*4-1:psum_bw*3]) + $signed(in[psum_bw*4-1:psum_bw*3]);
-          acc_reg[psum_bw*5-1:psum_bw*4] <= $signed(acc_reg[psum_bw*5-1:psum_bw*4]) + $signed(in[psum_bw*5-1:psum_bw*4]);
-          acc_reg[psum_bw*6-1:psum_bw*5] <= $signed(acc_reg[psum_bw*6-1:psum_bw*5]) + $signed(in[psum_bw*6-1:psum_bw*5]);
-          acc_reg[psum_bw*7-1:psum_bw*6] <= $signed(acc_reg[psum_bw*7-1:psum_bw*6]) + $signed(in[psum_bw*7-1:psum_bw*6]);
-          acc_reg[psum_bw*8-1:psum_bw*7] <= $signed(acc_reg[psum_bw*8-1:psum_bw*7]) + $signed(in[psum_bw*8-1:psum_bw*7]);
-        end else begin
-          acc_reg <= in;
-        end
-
-        // ReLU logic - fully unrolled for each column
-        if (relu_en) begin
-          out_reg[psum_bw*1-1:psum_bw*0] <= ($signed(acc_reg[psum_bw*1-1:psum_bw*0]) < 0) ? 16'h0 : acc_reg[psum_bw*1-1:psum_bw*0];
-          out_reg[psum_bw*2-1:psum_bw*1] <= ($signed(acc_reg[psum_bw*2-1:psum_bw*1]) < 0) ? 16'h0 : acc_reg[psum_bw*2-1:psum_bw*1];
-          out_reg[psum_bw*3-1:psum_bw*2] <= ($signed(acc_reg[psum_bw*3-1:psum_bw*2]) < 0) ? 16'h0 : acc_reg[psum_bw*3-1:psum_bw*2];
-          out_reg[psum_bw*4-1:psum_bw*3] <= ($signed(acc_reg[psum_bw*4-1:psum_bw*3]) < 0) ? 16'h0 : acc_reg[psum_bw*4-1:psum_bw*3];
-          out_reg[psum_bw*5-1:psum_bw*4] <= ($signed(acc_reg[psum_bw*5-1:psum_bw*4]) < 0) ? 16'h0 : acc_reg[psum_bw*5-1:psum_bw*4];
-          out_reg[psum_bw*6-1:psum_bw*5] <= ($signed(acc_reg[psum_bw*6-1:psum_bw*5]) < 0) ? 16'h0 : acc_reg[psum_bw*6-1:psum_bw*5];
-          out_reg[psum_bw*7-1:psum_bw*6] <= ($signed(acc_reg[psum_bw*7-1:psum_bw*6]) < 0) ? 16'h0 : acc_reg[psum_bw*7-1:psum_bw*6];
-          out_reg[psum_bw*8-1:psum_bw*7] <= ($signed(acc_reg[psum_bw*8-1:psum_bw*7]) < 0) ? 16'h0 : acc_reg[psum_bw*8-1:psum_bw*7];
-        end else begin
-          out_reg <= acc_reg;
-        end
+          // Update registers with the pre-calculated next values
+          acc_reg <= next_acc;
+          out_reg <= next_out; 
       end
     end
   end
 
 endmodule
-

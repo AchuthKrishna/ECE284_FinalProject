@@ -14,32 +14,44 @@ module mac_array (clk, reset, out_s, in_w, in_n, inst_w, valid);
   input  [psum_bw*col-1:0] in_n;
   output [col-1:0] valid;
 
-  reg [(row+1)*2-1:0] inst_q;
-  wire [psum_bw*col*row-1:0] out_s_temp;
-  wire [psum_bw*col*row-1:0] in_n_temp;
-  wire [col*row-1:0] valid_temp;
 
-  assign in_n_temp[psum_bw*col-1:0] = in_n;
-  assign out_s = out_s_temp[psum_bw*col*(row-1) +: psum_bw*col];
-  assign valid = valid_temp[col*(row-1) +: col];
+  reg    [2*row-1:0] inst_w_temp;
+  wire   [psum_bw*col*(row+1)-1:0] temp;
+  wire   [row*col-1:0] valid_temp;
+
 
   genvar i;
-  for (i = 0; i < row; i = i + 1) begin : row_num
-      mac_row #(.bw(bw), .psum_bw(psum_bw)) mac_row_instance (
-      .clk(clk),
-      .reset(reset),
-      .valid(valid_temp[i*col +: col]),
-      .in_w(in_w[i*bw +: bw]),
-      .in_n(in_n_temp[i*psum_bw*col +: psum_bw*col]),
-      .inst_w(inst_q[i*2 +: 2]),
-      .out_s(out_s_temp[i*psum_bw*col +: psum_bw*col]));
+ 
+  assign out_s = temp[psum_bw*col*9-1:psum_bw*col*8];
+  assign temp[psum_bw*col*1-1:psum_bw*col*0] = 0;
+  assign valid = valid_temp[row*col-1:row*col-8];
 
-      always @(posedge clk) begin
-	  inst_q[(i+1)*2 +: 2] <= inst_q[i*2 +: 2];
-      end
+  generate
+  for (i=1; i < row+1 ; i=i+1) begin : row_num
+      mac_row #(.bw(bw), .psum_bw(psum_bw)) mac_row_instance (
+         .clk(clk),
+         .reset(reset),
+	 .in_w(in_w[bw*i-1:bw*(i-1)]),
+	 .inst_w(inst_w_temp[2*i-1:2*(i-1)]),
+	 .in_n(temp[psum_bw*col*i-1:psum_bw*col*(i-1)]),
+         .valid(valid_temp[col*i-1:col*(i-1)]),
+	 .out_s(temp[psum_bw*col*(i+1)-1:psum_bw*col*(i)]));
+  end
+  endgenerate
+  always @ (posedge clk) begin
+
+
+    //valid <= valid_temp[row*col-1:row*col-8];
+    inst_w_temp[1:0]   <= inst_w; 
+    inst_w_temp[3:2]   <= inst_w_temp[1:0]; 
+    inst_w_temp[5:4]   <= inst_w_temp[3:2]; 
+    inst_w_temp[7:6]   <= inst_w_temp[5:4]; 
+    inst_w_temp[9:8]   <= inst_w_temp[7:6]; 
+    inst_w_temp[11:10] <= inst_w_temp[9:8]; 
+    inst_w_temp[13:12] <= inst_w_temp[11:10]; 
+    inst_w_temp[15:14] <= inst_w_temp[13:12]; 
   end
 
-  always @ (posedge clk)
-      inst_q[1:0] <= inst_w;
+
 
 endmodule

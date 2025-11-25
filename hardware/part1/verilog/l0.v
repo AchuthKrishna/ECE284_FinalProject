@@ -25,6 +25,7 @@ module l0 (clk, in, out, rd, wr, o_full, reset, o_ready);
   // o_full is high when ANY FIFO is full
   assign o_full  = |full ;
 
+  generate
 
   for (i=0; i<row ; i=i+1) begin : row_num
       fifo_depth64 #(.bw(bw)) fifo_instance (
@@ -38,6 +39,8 @@ module l0 (clk, in, out, rd, wr, o_full, reset, o_ready);
 	 .out(out[bw*(i+1)-1:bw*i]),
          .reset(reset));
   end
+  
+  endgenerate
 
 
   always @ (posedge clk) begin
@@ -45,11 +48,7 @@ module l0 (clk, in, out, rd, wr, o_full, reset, o_ready);
       rd_en <= 8'b00000000;
    end
    else begin
-      // Read all rows at once
-      if (rd) 
-         rd_en <= 8'b11111111;  // Enable all rows at once
-      else
-         rd_en <= 8'b00000000;  // Disable all rows
+		rd_en <= {rd_en[6:0], rd};
    end
   end
 
