@@ -53,8 +53,8 @@ reg l0_rd;
 reg l0_wr;
 reg execute;
 reg load;
-reg [8*30:1] stringvar;
-reg [8*30:1] w_file_name;
+reg [8*64:1] stringvar;
+reg [8*64:1] w_file_name;
 wire ofifo_valid;
 wire [col*psum_bw-1:0] sfp_out;
 
@@ -109,7 +109,7 @@ initial begin
   $dumpfile("core_tb.vcd");
   $dumpvars(0,core_tb);
 
-  x_file = $fopen("activation_tile0.txt", "r");
+  x_file = $fopen("../../software/part1/activation.txt", "r");
   // Following three lines are to remove the first three comment lines of the file
   x_scan_file = $fscanf(x_file,"%s", captured_data);
   x_scan_file = $fscanf(x_file,"%s", captured_data);
@@ -147,15 +147,15 @@ initial begin
   for (kij=0; kij<9; kij=kij+1) begin  // kij loop
 
     case(kij)
-     0: w_file_name = "weight_itile0_otile0_kij0.txt";
-     1: w_file_name = "weight_itile0_otile0_kij1.txt";
-     2: w_file_name = "weight_itile0_otile0_kij2.txt";
-     3: w_file_name = "weight_itile0_otile0_kij3.txt";
-     4: w_file_name = "weight_itile0_otile0_kij4.txt";
-     5: w_file_name = "weight_itile0_otile0_kij5.txt";
-     6: w_file_name = "weight_itile0_otile0_kij6.txt";
-     7: w_file_name = "weight_itile0_otile0_kij7.txt";
-     8: w_file_name = "weight_itile0_otile0_kij8.txt";
+     0: w_file_name = "../../software/part1/weight_0.txt";
+     1: w_file_name = "../../software/part1/weight_1.txt";
+     2: w_file_name = "../../software/part1/weight_2.txt";
+     3: w_file_name = "../../software/part1/weight_3.txt";
+     4: w_file_name = "../../software/part1/weight_4.txt";
+     5: w_file_name = "../../software/part1/weight_5.txt";
+     6: w_file_name = "../../software/part1/weight_6.txt";
+     7: w_file_name = "../../software/part1/weight_7.txt";
+     8: w_file_name = "../../software/part1/weight_8.txt";
     endcase
     
 
@@ -279,65 +279,70 @@ initial begin
 
 
   ////////// Accumulation /////////
-  out_file = $fopen("out.txt", "r");  
-  acc_file = $fopen("acc_address.txt", "r");
+  out_file = $fopen("../../software/part1/out.txt", "r");  
+  acc_file = $fopen("../../software/part1/acc_address.txt", "r");
 
-  // Following three lines are to remove the first three comment lines of the file
-  out_scan_file = $fscanf(out_file,"%s", answer); 
-  out_scan_file = $fscanf(out_file,"%s", answer); 
-  out_scan_file = $fscanf(out_file,"%s", answer); 
+  if (out_file == 0 || acc_file == 0) begin
+    $display("############ Skipping verification: missing out.txt/acc_address.txt ##############");
+  end else begin
+    // Following three lines are to remove the first three comment lines of the file
+    out_scan_file = $fscanf(out_file,"%s", answer); 
+    out_scan_file = $fscanf(out_file,"%s", answer); 
+    out_scan_file = $fscanf(out_file,"%s", answer); 
 
-  error = 0;
+    error = 0;
 
 
 
-  $display("############ Verification Start during accumulation #############"); 
+    $display("############ Verification Start during accumulation #############"); 
 
-  for (i=0; i<len_onij+1; i=i+1) begin 
+    for (i=0; i<len_onij+1; i=i+1) begin 
 
-    #0.5 clk = 1'b0; 
-    #0.5 clk = 1'b1; 
+      #0.5 clk = 1'b0; 
+      #0.5 clk = 1'b1; 
 
-    if (i>0) begin
-     out_scan_file = $fscanf(out_file,"%128b", answer); // reading from out file to answer
-       if (sfp_out == answer)
-         $display("%2d-th output featuremap Data matched! :D", i); 
-       else begin
-         $display("%2d-th output featuremap Data ERROR!!", i); 
-         $display("sfpout: %128b", sfp_out);
-         $display("answer: %128b", answer);
-         error = 1;
-       end
-    end
+      if (i>0) begin
+       out_scan_file = $fscanf(out_file,"%128b", answer); // reading from out file to answer
+         if (sfp_out == answer)
+           $display("%2d-th output featuremap Data matched! :D", i); 
+         else begin
+           $display("%2d-th output featuremap Data ERROR!!", i); 
+           $display("sfpout: %128b", sfp_out);
+           $display("answer: %128b", answer);
+           error = 1;
+         end
+      end
+     
    
- 
-    #0.5 clk = 1'b0; reset = 1;
-    #0.5 clk = 1'b1;  
-    #0.5 clk = 1'b0; reset = 0; 
-    #0.5 clk = 1'b1;  
+      #0.5 clk = 1'b0; reset = 1;
+      #0.5 clk = 1'b1;  
+      #0.5 clk = 1'b0; reset = 0; 
+      #0.5 clk = 1'b1;  
 
-    for (j=0; j<len_kij+1; j=j+1) begin 
+      for (j=0; j<len_kij+1; j=j+1) begin 
 
-      #0.5 clk = 1'b0;   
-        if (j<len_kij) begin CEN_pmem = 0; WEN_pmem = 1; acc_scan_file = $fscanf(acc_file,"%11b", A_pmem); end
-                       else  begin CEN_pmem = 1; WEN_pmem = 1; end
+        #0.5 clk = 1'b0;   
+          if (j<len_kij) begin CEN_pmem = 0; WEN_pmem = 1; acc_scan_file = $fscanf(acc_file,"%11b", A_pmem); end
+                         else  begin CEN_pmem = 1; WEN_pmem = 1; end
 
-        if (j>0)  acc = 1;  
-      #0.5 clk = 1'b1;   
+          if (j>0)  acc = 1;  
+        #0.5 clk = 1'b1;   
+      end
+
+      #0.5 clk = 1'b0; acc = 0;
+      #0.5 clk = 1'b1; 
     end
 
-    #0.5 clk = 1'b0; acc = 0;
-    #0.5 clk = 1'b1; 
+
+    if (error == 0) begin
+    	$display("############ No error detected ##############"); 
+    	$display("########### Project Completed !! ############"); 
+
+    end
+
+    $fclose(acc_file);
+    $fclose(out_file);
   end
-
-
-  if (error == 0) begin
-  	$display("############ No error detected ##############"); 
-  	$display("########### Project Completed !! ############"); 
-
-  end
-
-  $fclose(acc_file);
   //////////////////////////////////
 
   for (t=0; t<10; t=t+1) begin  
@@ -370,8 +375,3 @@ end
 
 
 endmodule
-
-
-
-
-

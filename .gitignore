@@ -3,3 +3,7 @@ project_description/
 
 # macOS
 .DS_Store
+
+# Simulation outputs
+*.vvp
+*.vcd
