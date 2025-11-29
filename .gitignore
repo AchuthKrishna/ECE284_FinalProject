@@ -7,3 +7,6 @@ project_description/
 # Simulation outputs
 *.vvp
 *.vcd
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/

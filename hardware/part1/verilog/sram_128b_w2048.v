@@ -11,8 +11,13 @@ module sram_128b_w2048 (CLK, D, Q, CEN, WEN, A);
   parameter num = 2048;
 
   reg [127:0] memory [num-1:0];
-  reg [10:0] add_q;
+  reg [10:0] add_q = 0;
   assign Q = memory[add_q];
+
+  integer i;
+  initial begin
+    for (i = 0; i < num; i = i + 1) memory[i] = 128'b0;
+  end
 
   always @ (posedge CLK) begin
 
@@ -24,4 +29,3 @@ module sram_128b_w2048 (CLK, D, Q, CEN, WEN, A);
   end
 
 endmodule
-

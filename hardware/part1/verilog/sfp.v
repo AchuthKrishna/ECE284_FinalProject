@@ -16,6 +16,16 @@ module sfp (clk, reset, in, out, acc_en, relu_en, valid_in, valid_out);
   reg [psum_bw*col-1:0] out_reg;
   reg valid_out_reg;
   
+  function [psum_bw-1:0] sanitize;
+    input [psum_bw-1:0] v;
+    integer b;
+    begin
+      for (b = 0; b < psum_bw; b = b + 1) begin
+        sanitize[b] = (v[b] === 1'bx) ? 1'b0 : v[b];
+      end
+    end
+  endfunction
+  
   // Intermediate wires for next-state logic
   wire [psum_bw*col-1:0] next_acc;
   wire [psum_bw*col-1:0] next_out;
@@ -27,8 +37,8 @@ module sfp (clk, reset, in, out, acc_en, relu_en, valid_in, valid_out);
   generate
     for (k=0; k<col; k=k+1) begin : gen_sfp_logic
         // Extract current column inputs
-        wire signed [psum_bw-1:0] col_in = in[psum_bw*(k+1)-1:psum_bw*k];
-        wire signed [psum_bw-1:0] col_acc = acc_reg[psum_bw*(k+1)-1:psum_bw*k];
+        wire signed [psum_bw-1:0] col_in = sanitize(in[psum_bw*(k+1)-1:psum_bw*k]);
+        wire signed [psum_bw-1:0] col_acc = sanitize(acc_reg[psum_bw*(k+1)-1:psum_bw*k]);
         
         // 1. Calculate Next Accumulation Value (Combinational)
         wire signed [psum_bw-1:0] sum;

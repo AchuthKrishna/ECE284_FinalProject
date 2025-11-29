@@ -133,12 +133,12 @@ module core (
   // If executing (Calculation mode), take data from MAC Array (mac_out).
   assign sfp_in_mux = (!execute) ? pmem_out : mac_out;
   
-  // [FINAL FIX] SFP Valid Mux Logic
-  // If NOT executing, force valid=1 to allow loading/accumulating from SRAM.
-  // If executing, follow MAC valid signal.
-  assign sfp_valid_in_mux = (!execute) ? 1'b1 : |mac_valid;
+  // SFP Valid Mux Logic
+  // Only process valid data when executing AND ALL columns have valid output
+  assign sfp_valid_in_mux = execute & (&mac_valid);
 
   // Special Function Processor
+  // ReLU disabled during partial sum computation; TB does final accumulation and ReLU
   sfp #(
     .col(col),
     .psum_bw(psum_bw)
@@ -146,9 +146,9 @@ module core (
     .clk(clk),
     .reset(reset),
     .in(sfp_in_mux),      // Use muxed input
-    .out(sfp_result),   
+    .out(sfp_result),
     .acc_en(acc),
-    .relu_en(1'b1),
+    .relu_en(1'b0),       // Disabled - ReLU applied after full accumulation
     .valid_in(sfp_valid_in_mux), // Use muxed valid
     .valid_out(sfp_valid_out)
   );

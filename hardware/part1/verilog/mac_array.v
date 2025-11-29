@@ -14,7 +14,7 @@ module mac_array (clk, reset, out_s, in_w, in_n, inst_w, valid);
   input  [psum_bw*col-1:0] in_n;
   output [col-1:0] valid;
 
-  reg [(row+1)*2-1:0] inst_q;
+  reg [(row+1)*2-1:0] inst_q = 0;
   wire [psum_bw*col*row-1:0] out_s_temp;
   wire [psum_bw*col*row-1:0] in_n_temp;
   wire [col*row-1:0] valid_temp;
@@ -25,6 +25,10 @@ module mac_array (clk, reset, out_s, in_w, in_n, inst_w, valid);
 
   genvar i;
   generate
+  for (i = 1; i < row; i = i + 1) begin : psum_chain
+      assign in_n_temp[i*psum_bw*col +: psum_bw*col] = out_s_temp[(i-1)*psum_bw*col +: psum_bw*col];
+  end
+
   for (i = 0; i < row; i = i + 1) begin : row_num
       mac_row #(.bw(bw), .psum_bw(psum_bw)) mac_row_instance (
       .clk(clk),
