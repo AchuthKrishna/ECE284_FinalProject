@@ -40,6 +40,7 @@ reg execute_q = 0;
 reg load_q = 0;
 reg acc_q = 0;
 reg mode_os_q = 0;
+
 reg acc = 0;
 reg mode_os = 0; // inst[34] : 0 = weight-stationary, 1 = output-stationary
 
@@ -72,6 +73,8 @@ integer captured_data;
 integer t, i, j, k, kij;
 integer error;
 integer part3_vector_handle;
+integer has_part3_vectors;
+
 
 assign inst_q[34] = mode_os_q;
 assign inst_q[33] = acc_q;
@@ -113,17 +116,27 @@ initial begin
   l0_wr    = 0;
   execute  = 0;
   load     = 0;
+  acc      = 0;
+  mode_os  = 0;
+  has_part3_vectors = 0;
 
   $dumpfile("core_tb.vcd");
   $dumpvars(0,core_tb);
 
   part3_vector_handle = $fopen("../../software/part3/input.txt", "r");
   if (part3_vector_handle == 0) begin
+    has_part3_vectors = 0;
     $display("############ Part3 OS run skipped: missing ../../software/part3/input.txt ############");
   end else begin
-    $display("############ Part3 OS stimulus detected; add OS run sequence when vectors available ############");
+    has_part3_vectors = 1;
+    $display("############ Part3 OS stimulus detected; OS run will be executed after WS run ############");
     $fclose(part3_vector_handle);
   end
+
+  // ===========================
+  // ========== WS RUN =========
+  // ===========================
+
 
   x_file = $fopen("../../software/part1/activation.txt", "r");
   // Following three lines are to remove the first three comment lines of the file
@@ -147,7 +160,7 @@ initial begin
   #0.5 clk = 1'b1;   
   /////////////////////////
 
-  /////// Activation data writing to memory ///////
+  /////// Activation data writing to memory (WS run)///////
   for (t=0; t<len_nij; t=t+1) begin  
     #0.5 clk = 1'b0;  x_scan_file = $fscanf(x_file,"%32b", D_xmem); WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1;
     #0.5 clk = 1'b1;   
@@ -432,8 +445,293 @@ initial begin
 
     $fclose(out_file);
   end
-  //////////////////////////////////
+  //////////////////////////////////  WS done //////
 
+  // =======================================
+  // ========== OS MODE (Part3) ============
+  // =======================================
+  if (has_part3_vectors) begin
+    $display("############ Starting Part3 Output-Stationary (OS) run ############");
+
+    inst_w   = 0; 
+    D_xmem   = 0;
+    CEN_xmem = 1;
+    WEN_xmem = 1;
+    A_xmem   = 0;
+    ofifo_rd = 0;
+    ififo_wr = 0;
+    ififo_rd = 0;
+    l0_rd    = 0;
+    l0_wr    = 0;
+    execute  = 0;
+    load     = 0;
+    acc      = 0;
+    mode_os  = 1;  
+
+    for (t=0; t<len_kij*len_nij; t=t+1) begin
+      pmem_shadow[t] = {psum_bw*col{1'b0}};
+    end
+
+    // read activation
+    x_file = $fopen("../../software/part3/activation.txt", "r");
+    if (x_file == 0) begin
+      $display("############ OS run aborted: missing ../../software/part3/activation.txt ############");
+    end else begin
+      // remove header
+      x_scan_file = $fscanf(x_file,"%s", captured_data);
+      x_scan_file = $fscanf(x_file,"%s", captured_data);
+      x_scan_file = $fscanf(x_file,"%s", captured_data);
+
+      //////// Reset for OS /////////
+      #0.5 clk = 1'b0;   reset = 1;
+      #0.5 clk = 1'b1; 
+
+      for (i=0; i<10 ; i=i+1) begin
+        #0.5 clk = 1'b0;
+        #0.5 clk = 1'b1;  
+      end
+
+      #0.5 clk = 1'b0;   reset = 0;
+      #0.5 clk = 1'b1; 
+
+      #0.5 clk = 1'b0;   
+      #0.5 clk = 1'b1;   
+      /////////////////////////
+
+      /////// Activation data writing to memory (OS run) ///////
+      for (t=0; t<len_nij; t=t+1) begin  
+        #0.5 clk = 1'b0;  
+        x_scan_file = $fscanf(x_file,"%32b", D_xmem); 
+        WEN_xmem = 0; 
+        CEN_xmem = 0; 
+        if (t>0) A_xmem = A_xmem + 1;
+        #0.5 clk = 1'b1;   
+      end
+
+      #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0;
+      #0.5 clk = 1'b1; 
+
+      $fclose(x_file);
+
+      // -------- kij loop for OS -----------
+      for (kij=0; kij<9; kij=kij+1) begin
+
+        case(kij)
+         0: w_file_name = "../../software/part3/weight_0.txt";
+         1: w_file_name = "../../software/part3/weight_1.txt";
+         2: w_file_name = "../../software/part3/weight_2.txt";
+         3: w_file_name = "../../software/part3/weight_3.txt";
+         4: w_file_name = "../../software/part3/weight_4.txt";
+         5: w_file_name = "../../software/part3/weight_5.txt";
+         6: w_file_name = "../../software/part3/weight_6.txt";
+         7: w_file_name = "../../software/part3/weight_7.txt";
+         8: w_file_name = "../../software/part3/weight_8.txt";
+        endcase
+
+        w_file = $fopen(w_file_name, "r");
+        if (w_file == 0) begin
+          $display("############ OS run aborted: missing %0s ############", w_file_name);
+          $finish;
+        end
+
+        // remove header
+        w_scan_file = $fscanf(w_file,"%s", captured_data);
+        w_scan_file = $fscanf(w_file,"%s", captured_data);
+        w_scan_file = $fscanf(w_file,"%s", captured_data);
+        //////// Reset for OS kernel load /////////
+        #0.5 clk = 1'b0;   reset = 1;
+        #0.5 clk = 1'b1; 
+        for (i=0; i<5 ; i=i+1) begin
+          #0.5 clk = 1'b0;
+          #0.5 clk = 1'b1;  
+        end
+        #0.5 clk = 1'b0;   reset = 0;
+        #0.5 clk = 1'b1; 
+        #0.5 clk = 1'b0;   
+        #0.5 clk = 1'b1;   
+
+        begin : os_weight_prep
+          reg [31:0] w_lines      [0:7];  
+          reg [31:0] w_transposed [0:7];  
+          reg [3:0]  w_nibble;
+          integer wi, wj;
+
+          for (wi=0; wi<col; wi=wi+1) begin
+            w_scan_file = $fscanf(w_file, "%32b", w_lines[wi]);
+          end
+
+          for (wi=0; wi<col; wi=wi+1) begin
+            w_transposed[wi] = 0;
+            for (wj=0; wj<row; wj=wj+1) begin
+              w_nibble = (w_lines[wj] >> (4*wi)) & 4'hF;
+              w_transposed[wi] = w_transposed[wi] | (w_nibble << (4*wj));
+            end
+          end
+
+          ififo_wr = 0;
+          ififo_rd = 0;
+          #0.5 clk = 1'b0;
+          #0.5 clk = 1'b1;
+
+          for (t=0; t<col; t=t+1) begin
+            #0.5 clk = 1'b0;
+            D_xmem   = w_transposed[t];
+            ififo_wr = 1;
+            WEN_xmem = 1;
+            CEN_xmem = 1;
+            #0.5 clk = 1'b1;
+          end
+
+          // end IFIFO
+          #0.5 clk = 1'b0;
+          ififo_wr = 0;
+          #0.5 clk = 1'b1;
+
+          for (t=0; t<col; t=t+1) begin
+            #0.5 clk = 1'b0;
+            ififo_rd = 1;
+            load     = 1;
+            l0_rd    = 0;
+            #0.5 clk = 1'b1;
+          end
+
+          #0.5 clk = 1'b0;
+          ififo_rd = 0;
+          load     = 0;
+          #0.5 clk = 1'b1;
+        end // os_weight_prep
+
+        // ---- Activation -> L0 ----
+        A_xmem = 0;
+        for (t=0; t<len_nij; t=t+1) begin
+          #0.5 clk = 1'b0; 
+          CEN_xmem = 0; 
+          WEN_xmem = 1; 
+          l0_wr    = 1; 
+          if (t>0) A_xmem = A_xmem + 1;
+          #0.5 clk = 1'b1;
+        end
+        #0.5 clk = 1'b0; l0_wr = 0; CEN_xmem = 1; WEN_xmem = 1; A_xmem = 0;
+        #0.5 clk = 1'b1;
+
+        // ---- Execution（Output-Stationary dataflow）----
+        for (t=0; t<len_nij; t=t+1) begin
+          #0.5 clk = 1'b0; 
+          execute = 1; 
+          l0_rd   = 1;
+          #0.5 clk = 1'b1;
+        end
+
+        // Drain pipeline
+        for (t=0; t<row+col; t=t+1) begin
+          #0.5 clk = 1'b0; execute = 1; l0_rd = 0;
+          #0.5 clk = 1'b1;
+        end
+
+        #0.5 clk = 1'b0; execute = 0;
+        #0.5 clk = 1'b1;
+        #0.5 clk = 1'b0;
+        #0.5 clk = 1'b1;
+
+        //////// OFIFO READ (OS) ////////
+        #0.5 clk = 1'b0; ofifo_rd = 1;
+        #0.5 clk = 1'b1;
+        #0.5 clk = 1'b0;
+        #0.5 clk = 1'b1;
+        #0.5 clk = 1'b0;
+        #0.5 clk = 1'b1;
+
+        for (t=0; t<len_nij; t=t+1) begin
+          pmem_shadow[kij*len_nij + t] = core_instance.ofifo_out;
+          #0.5 clk = 1'b0;
+          #0.5 clk = 1'b1;
+        end
+
+        #0.5 clk = 1'b0; ofifo_rd = 0;
+        #0.5 clk = 1'b1;
+
+        $display("OS: kij %0d captured %0d entries from OFIFO", kij, len_nij);
+
+        $fclose(w_file);
+
+      end // kij loop OS
+
+      // ---- OS Verification----
+      out_file = $fopen("../../software/part3/output.txt", "r");  
+
+      if (out_file == 0) begin
+        $display("############ Skipping OS verification: missing ../../software/part3/output.txt ##############");
+      end else begin
+        out_scan_file = $fscanf(out_file,"%s", answer); 
+        out_scan_file = $fscanf(out_file,"%s", answer); 
+        out_scan_file = $fscanf(out_file,"%s", answer); 
+
+        error = 0;
+
+        $display("############ OS Verification Start (TB accumulation) #############"); 
+
+        for (i=1; i<len_onij+1; i=i+1) begin
+          out_scan_file = $fscanf(out_file,"%128b", answer);
+
+          for (k=0; k<col; k=k+1) acc_cols[k] = 0;
+
+          for (kij=0; kij<len_kij; kij=kij+1) begin
+            for (k=0; k<col; k=k+1) begin
+              integer idx;
+              integer o_nij;
+              integer psum_nij;
+              integer o_ni_dim;     
+              integer a_pad_ni_dim; 
+              integer ki_dim;       
+
+              o_ni_dim     = 4;       
+              a_pad_ni_dim = 6;   
+              ki_dim       = 3;         
+
+              o_nij    = i - 1;  
+              psum_nij = (o_nij / o_ni_dim) * a_pad_ni_dim + (o_nij % o_ni_dim) +
+                         (kij / ki_dim) * a_pad_ni_dim + (kij % ki_dim);
+
+              idx   = kij * len_nij + ((psum_nij + len_nij - (5 - k)) % len_nij);
+              slice = (pmem_shadow[idx] >> (k*psum_bw));
+              acc_cols[k] = acc_cols[k] + slice;
+            end
+          end
+
+          computed = 0;
+          for (k=0; k<col; k=k+1) begin
+            reg [psum_bw-1:0] relu_val;
+            if (acc_cols[k][psum_bw-1] == 1'b1)
+              relu_val = {psum_bw{1'b0}};
+            else
+              relu_val = acc_cols[k];
+            computed = computed | (relu_val << (k*psum_bw));
+          end
+
+          if (computed == answer)
+            $display("OS: %2d-th output featuremap Data matched! :D", i); 
+          else begin
+            $display("OS: %2d-th output featuremap Data ERROR!!", i); 
+            $display("OS computed: %128b", computed);
+            $display("OS answer  : %128b", answer);
+            error = 1;
+          end
+        end
+
+        if (error == 0) begin
+          $display("############ OS: No error detected ##############"); 
+          $display("########### OS: Project Part3 Completed !! ############"); 
+        end
+
+        $fclose(out_file);
+      end
+    end // if x_file != 0
+  end // if has_part3_vectors
+  // =======================================
+  // ========== OS MODE DONE ==============
+
+
+  // Let some cycles pass before finishing
   for (t=0; t<10; t=t+1) begin  
     #0.5 clk = 1'b0;  
     #0.5 clk = 1'b1;  
