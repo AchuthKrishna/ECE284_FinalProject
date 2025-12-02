@@ -73,6 +73,8 @@ A working example showing the interfacing of the deployed design with PYNQ throu
 | **Hold** | 0.011 ns | 0.000 ns | 0 | **Met** |
 | **Pulse Width** | 3.656 ns | 0.000 ns | 0 | **Met** |
 
+As shown in the tables above, all timing constraints have been successfully met, and the design can increase the clock frequency to 200 MHz.
+
 ## Acknowledgments
 This "+ alpha" work is assisted by Claude Code.
 Some code borrowed from my own projects (by [Wuqiong Zhao](https://wqzhao.org)).
