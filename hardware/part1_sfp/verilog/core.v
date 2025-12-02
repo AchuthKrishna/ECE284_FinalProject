@@ -11,6 +11,8 @@ module core (
   parameter psum_bw = 16;
   parameter col = 8;
   parameter row = 8;
+  // Activation type: 0=None, 1=ReLU, 2=Sigmoid, 3=Tanh
+  parameter act_type = 1;
 
   input clk;
   input reset;
@@ -138,17 +140,18 @@ module core (
   assign sfp_valid_in_mux = execute & (&mac_valid);
 
   // Special Function Processor
-  // ReLU disabled during partial sum computation; TB does final accumulation and ReLU
+  // Activation disabled during partial sum computation; TB does final accumulation and activation
   sfp #(
     .col(col),
-    .psum_bw(psum_bw)
+    .psum_bw(psum_bw),
+    .act_type(act_type)
   ) sfp_instance (
     .clk(clk),
     .reset(reset),
     .in(sfp_in_mux),      // Use muxed input
     .out(sfp_result),
     .acc_en(acc),
-    .relu_en(1'b0),       // Disabled - ReLU applied after full accumulation
+    .act_en(1'b0),        // Disabled - Activation applied after full accumulation
     .valid_in(sfp_valid_in_mux), // Use muxed valid
     .valid_out(sfp_valid_out)
   );
