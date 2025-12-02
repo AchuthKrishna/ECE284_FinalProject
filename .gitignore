@@ -10,3 +10,13 @@ project_description/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+
+# Vivado
+*.log
+*.jou
+*.cache
+*.runs
+*.pb
+*.wdb
+xsim.dir
+hardware/part1_pynq/output
