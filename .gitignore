@@ -20,3 +20,6 @@ project_description/
 *.wdb
 xsim.dir
 hardware/part1_pynq/output
+
+# OpenROAD flow scipts
+OpenROAD-flow-scripts
