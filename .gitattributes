@@ -1,6 +1,6 @@
-*.lpr linguist-language=XML
+**/*.lpr linguist-language=XML
 **/xgui/*.tcl linguist-generated
-*.gen/** linguist-generated
-*.ip_user_files/** linguist-generated
-*_ooc.xdc linguist-generated
-constraints/*.xdc linguist-language=Tcl
+**/*.gen/** linguist-generated
+**/*.ip_user_files/** linguist-generated
+**/*_ooc.xdc linguist-generated
+**/constraints/*.xdc linguist-language=Tcl
