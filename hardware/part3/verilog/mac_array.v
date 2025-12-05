@@ -1,6 +1,6 @@
 // Created by prof. Mingu Kang @VVIP Lab in UCSD ECE department
 // Please do not spread this code without permission 
-module mac_array (clk, reset, mode_os, w_stream, out_s, in_w, in_n, inst_w, valid);
+module mac_array (clk, reset, mode_os, w_stream, w_shift, out_s, in_w, in_n, inst_w, valid);
 
   parameter bw = 4;
   parameter psum_bw = 16;
@@ -9,8 +9,9 @@ module mac_array (clk, reset, mode_os, w_stream, out_s, in_w, in_n, inst_w, vali
 
   input  clk, reset, mode_os;
   input  [row*bw-1:0] w_stream;
+  input  w_shift;
   output [psum_bw*col-1:0] out_s;
-  input  [row*bw-1:0] in_w; // inst[1]:execute, inst[0]: kernel loading
+  input  [row*bw-1:0] in_w;
   input  [1:0] inst_w;
   input  [psum_bw*col-1:0] in_n;
   output [col-1:0] valid;
@@ -36,6 +37,7 @@ module mac_array (clk, reset, mode_os, w_stream, out_s, in_w, in_n, inst_w, vali
       .reset(reset),
       .mode_os(mode_os),
       .w_stream(w_stream[i*bw +: bw]),
+      .w_shift(w_shift),
       .valid(valid_temp[i*col +: col]),
       .in_w(in_w[i*bw +: bw]),
       .in_n(in_n_temp[i*psum_bw*col +: psum_bw*col]),

@@ -116,9 +116,10 @@ module core (
     .reset(reset),
     .mode_os(mode_os),
     .w_stream(ififo_out),
+    .w_shift(ififo_rd),
     .out_s(mac_out),
     .in_w(l0_out),
-    .in_n(pmem_out), 
+    .in_n(pmem_out),
     .inst_w(inst_w),
     .valid(mac_valid)
   );
